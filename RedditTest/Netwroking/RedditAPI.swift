@@ -8,40 +8,33 @@
 
 import Foundation
 
-class RedditAPI {
-    
-    static let baseURL = "https://www.reddit.com/top.json"
-    private let session = URLSession.shared
+let baseURL = "https://www.reddit.com/top.json"
 
-    
-    func request(_ apiTask:APITaskProtocol) {
-        let request = apiTask.request()
-        session.dataTask(with: request) { (data, response, error) in
-            apiTask.setup(responseData: data, response: response, error: error)
-        }
-    }
-    
+enum NetwrokError:Error {
+    case invalidURL
+    case emptyData
 }
 
-typealias ClosureAcceptType<T> = (T) -> ()
+enum Result<T> {
+    case success(_ value:T)
+    case error(_ error:Error?)
+}
 
-func requestTopPosts(_ after:String?, completion:@escaping ClosureAcceptType<TopPostsModel>) {
-    let url = RedditAPI.baseURL
+func requestTopPosts(_ after:String?,
+                     completion:@escaping ClosureAcceptType<Result<TopPostsModel>>) {
+    let url = baseURL
     let urlSession = URLSession.shared
     guard let apiURL = URL(string:url) else {
+        completion(.error(NetwrokError.invalidURL))
         return
     }
     var requestURL = apiURL
-    
     if let parameterAfter = after {
-        
         let urlString = url + "?after=\(parameterAfter)"
-        
         if let newURL = URL(string: urlString) {
             requestURL = newURL
         }
     }
-    //      print(requestURL.absoluteString)
     
     var req = URLRequest(url: requestURL)
     
@@ -50,18 +43,15 @@ func requestTopPosts(_ after:String?, completion:@escaping ClosureAcceptType<Top
     
     let task = urlSession.dataTask(with: req) { (data, response, error) in
         guard let aData = data else {
+            completion(.error(NetwrokError.emptyData))
             return
         }
         do {
             let model = try JSONDecoder().decode(TopPostsModel.self, from: aData)
-            completion(model)
+            completion(.success(model))
         } catch {
-            print(error)
+            completion(.error(error))
         }
     }
     task.resume()
-}
-
-class TopPostsRequest {
-    
 }
